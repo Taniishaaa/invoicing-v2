@@ -1,0 +1,462 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  super_admin
+  hr_team
+  finance_team
+  compliance_team
+  vendor
+}
+
+enum UserSubRole {
+  hr_maker
+  hr_checker
+  hr_approver
+  compliance
+  finance_maker
+  finance_checker
+}
+
+enum ProjectType {
+  fos
+  seva_sarathi
+  atm_mitra
+  csp_mitra
+  collections
+}
+
+enum NatureType {
+  salary
+  reimbursement
+  sourcing
+  bgv
+  fnf
+}
+
+enum InvoiceType {
+  regular
+  credit_note
+}
+
+enum ExtractionStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum HrStatus {
+  pending
+  maker_verified
+  checker_reviewed
+  approved
+  rejected
+}
+
+enum FinanceStatus {
+  pending
+  maker_verified
+  cleared
+  rejected
+}
+
+enum ComplianceStatus {
+  pending
+  verified
+  rejected
+}
+
+enum WorkflowStage {
+  uploaded
+  extracted
+  hr_maker_verified
+  hr_checker_reviewed
+  hr_approved
+  compliance_verified
+  finance_maker_verified
+  finance_cleared
+  paid
+  rejected
+}
+
+enum PaymentStatus {
+  unpaid
+  paid
+}
+
+enum BatchStatus {
+  uploaded
+  processing
+  completed
+  partially_completed
+  failed
+}
+
+enum SupportingDocumentStage {
+  hr
+  compliance
+  finance
+}
+
+model AuthUser {
+  id String @id @default(cuid())
+
+  username String @unique
+  email    String @unique
+  password String
+
+  name String
+
+  role    UserRole
+  subRole UserSubRole?
+
+  isActive  Boolean @default(true)
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hrPartner HrPartner?
+
+  uploadedBatches UploadBatch[] @relation("BatchUploader")
+
+  hrMakerInvoices        InvoiceStatus[] @relation("HrMaker")
+  hrCheckerInvoices      InvoiceStatus[] @relation("HrChecker")
+  hrApprovedInvoices     InvoiceStatus[] @relation("HrApprovedBy")
+  complianceInvoices     InvoiceStatus[] @relation("ComplianceUser")
+  financeMakerInvoices   InvoiceStatus[] @relation("FinanceMaker")
+  financeCheckerInvoices InvoiceStatus[] @relation("FinanceChecker")
+  paymentUpdatedInvoices InvoiceStatus[] @relation("PaymentUpdatedBy")
+
+  activities                InvoiceActivity[]
+  vendorSupportingDocuments VendorSupportingDocument[]
+  batchSupportingDocuments  BatchSupportingDocument[]
+}
+
+model HrPartner {
+  id String @id @default(cuid())
+
+  userId String   @unique
+  user   AuthUser @relation(fields: [userId], references: [id])
+
+  name String
+  pan  String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices    Invoice[]
+  creditNotes CreditNote[]
+  batches     UploadBatch[]
+}
+
+model UploadBatch {
+  id String @id @default(cuid())
+
+  hrPartnerId String
+  hrPartner   HrPartner @relation(fields: [hrPartnerId], references: [id])
+
+  uploadedById String
+  uploadedBy   AuthUser @relation("BatchUploader", fields: [uploadedById], references: [id])
+
+  totalFiles     Int
+  processedFiles Int         @default(0)
+  failedFiles    Int         @default(0)
+  status         BatchStatus @default(uploaded)
+
+  project ProjectType
+  nature  NatureType
+
+  createdAt DateTime @default(now())
+
+  invoices    Invoice[]
+  creditNotes CreditNote[]
+
+  vendorDocuments     VendorSupportingDocument[]
+  supportingDocuments BatchSupportingDocument[]
+}
+
+model Invoice {
+  id String @id @default(cuid())
+
+  uploadBatchId String
+  uploadBatch   UploadBatch @relation(fields: [uploadBatchId], references: [id])
+
+  hrPartnerId String
+  hrPartner   HrPartner @relation(fields: [hrPartnerId], references: [id])
+
+  project ProjectType
+  nature  NatureType
+
+  extractionStatus ExtractionStatus @default(pending)
+  rawExtraction    Json?
+
+  hrPartnerGstin   String?
+  hrPartnerPan     String?
+  hrPartnerState   String?
+  hrPartnerAddress String?
+
+  sbossName    String?
+  sbossState   String?
+  sbossGstin   String?
+  sbossPan     String?
+  sbossAddress String?
+
+  extractionError String?
+
+  irn           String?
+  invoiceNumber String?
+
+  invoiceDate DateTime?
+
+  description String?
+
+  taxableAmount Decimal? @db.Decimal(15, 2)
+
+  type InvoiceType @default(regular)
+
+  cgstAmount Decimal? @db.Decimal(15, 2)
+  sgstAmount Decimal? @db.Decimal(15, 2)
+  igstAmount Decimal? @db.Decimal(15, 2)
+
+  invoiceValue Decimal? @db.Decimal(15, 2)
+
+  shortAmount  Decimal? @db.Decimal(15, 2)
+  excessAmount Decimal? @db.Decimal(15, 2)
+
+  note String?
+
+  pdfPath          String
+  originalFileName String?
+  mimeType         String?
+  fileSize         Int?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  fileHash    String?
+  invoiceHash String?
+
+  creditNotes CreditNote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  status InvoiceStatus?
+
+  activities InvoiceActivity[]
+
+  @@index([invoiceNumber])
+  @@index([irn])
+  @@index([fileHash])
+  @@index([invoiceHash])
+}
+
+model CreditNote {
+  id String @id @default(cuid())
+
+  hrPartnerId String
+  hrPartner   HrPartner @relation(fields: [hrPartnerId], references: [id])
+
+  originalInvoiceId String?
+  originalInvoice   Invoice? @relation(fields: [originalInvoiceId], references: [id])
+
+  uploadBatchId String?
+  uploadBatch   UploadBatch? @relation(fields: [uploadBatchId], references: [id])
+
+  extractionStatus ExtractionStatus @default(pending)
+
+  creditNoteNumber      String?
+  originalInvoiceNumber String?
+
+  creditNoteDate DateTime?
+
+  taxableAmount Decimal? @db.Decimal(15, 2)
+  cgstAmount    Decimal? @db.Decimal(15, 2)
+  sgstAmount    Decimal? @db.Decimal(15, 2)
+  igstAmount    Decimal? @db.Decimal(15, 2)
+
+  creditNoteValue Decimal? @db.Decimal(15, 2)
+
+  description String?
+
+  rawExtraction Json?
+
+  extractionError String?
+
+  pdfPath          String
+  originalFileName String?
+  mimeType         String?
+  fileSize         Int?
+
+  isDeleted Boolean @default(false)
+  deletedAt DateTime?
+
+  supportingDocuments VendorSupportingDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creditNoteNumber])
+  @@index([originalInvoiceNumber])
+  @@index([originalInvoiceId])
+}
+
+model InvoiceStatus {
+  id String @id @default(cuid())
+
+  invoiceId String  @unique
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+
+  hrStatus      HrStatus      @default(pending)
+  financeStatus FinanceStatus @default(pending)
+  paymentStatus PaymentStatus @default(unpaid)
+  currentStage  WorkflowStage @default(uploaded)
+
+  hrMakerId String?
+  hrMaker   AuthUser? @relation("HrMaker", fields: [hrMakerId], references: [id])
+  hrMakerAt DateTime?
+
+  hrCheckerId String?
+  hrChecker   AuthUser? @relation("HrChecker", fields: [hrCheckerId], references: [id])
+  hrCheckerAt DateTime?
+
+  hrApprovedById String?
+  hrApprovedBy   AuthUser? @relation("HrApprovedBy", fields: [hrApprovedById], references: [id])
+  hrApprovedAt   DateTime?
+
+  hrMakerRemarks   String?
+  hrCheckerRemarks String?
+  hrRemarks        String?
+
+  requiresCompliance Boolean @default(true)
+
+  complianceStatus ComplianceStatus @default(pending)
+  complianceUserId String?
+  complianceUser   AuthUser?        @relation("ComplianceUser", fields: [complianceUserId], references: [id])
+
+  complianceAt      DateTime?
+  complianceRemarks String?
+
+  financeMakerId      String?
+  financeMaker        AuthUser? @relation("FinanceMaker", fields: [financeMakerId], references: [id])
+  financeMakerAt      DateTime?
+  financeMakerRemarks String?
+
+  financeCheckerId      String?
+  financeChecker        AuthUser? @relation("FinanceChecker", fields: [financeCheckerId], references: [id])
+  financeCheckerAt      DateTime?
+  financeCheckerRemarks String?
+
+  paymentReferenceId String?
+  paymentDate        DateTime?
+
+  paymentUpdatedById String?
+  paymentUpdatedBy   AuthUser? @relation("PaymentUpdatedBy", fields: [paymentUpdatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([currentStage])
+  @@index([hrStatus])
+  @@index([financeStatus])
+  @@index([paymentStatus])
+  @@index([complianceStatus])
+}
+
+model InvoiceActivity {
+  id String @id @default(cuid())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+
+  userId String
+  user   AuthUser @relation(fields: [userId], references: [id])
+
+  action  String
+  remarks String?
+  role    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+model UploadLock {
+  id String @id @default(cuid())
+
+  isLocked Boolean @default(false)
+  reason   String?
+
+  lockedById   String?
+  lockedByName String?
+  lockedAt     DateTime?
+
+  updatedAt DateTime @updatedAt
+}
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model VendorSupportingDocument {
+  id String @id @default(cuid())
+
+  uploadBatchId String?
+  uploadBatch   UploadBatch? @relation(fields: [uploadBatchId], references: [id])
+
+  creditNoteId String?
+  creditNote   CreditNote? @relation(fields: [creditNoteId], references: [id])
+
+  uploadedById String
+  uploadedBy   AuthUser @relation(fields: [uploadedById], references: [id])
+
+  documentName     String
+  originalFileName String
+  filePath         String
+
+  mimeType String?
+  fileSize Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([uploadBatchId])
+  @@index([creditNoteId])
+}
+
+model BatchSupportingDocument {
+  id String @id @default(cuid())
+
+  uploadBatchId String
+  uploadBatch   UploadBatch @relation(fields: [uploadBatchId], references: [id])
+
+  uploadedById String
+  uploadedBy   AuthUser @relation(fields: [uploadedById], references: [id])
+
+  stage SupportingDocumentStage
+
+  title String
+
+  originalFileName String
+  filePath         String
+
+  mimeType String?
+  fileSize Int?
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+
+  @@index([uploadBatchId])
+  @@index([stage])
+}
