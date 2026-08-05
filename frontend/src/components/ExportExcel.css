@@ -1,0 +1,192 @@
+.export-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeIn .2s ease;
+}
+
+.export-modal {
+
+    width: 720px;
+
+    max-width: 95%;
+
+    background: #fff;
+
+    border-radius: 12px;
+
+    box-shadow: 0 15px 50px rgba(0,0,0,.25);
+
+    overflow: hidden;
+
+    animation: slideUp .25s ease;
+
+}
+
+.export-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    padding: 18px 24px;
+
+    border-bottom: 1px solid #ececec;
+
+}
+
+.export-header h3 {
+
+    margin: 0;
+
+    font-size: 20px;
+
+    font-weight: 600;
+
+}
+
+.close-btn {
+
+    border: none;
+
+    background: transparent;
+
+    font-size: 28px;
+
+    cursor: pointer;
+
+    color: #777;
+
+    line-height: 1;
+
+}
+
+.close-btn:hover {
+
+    color: #000;
+
+}
+
+.export-body {
+
+    padding: 24px;
+
+    display: grid;
+
+    grid-template-columns: repeat(2,1fr);
+
+    gap: 18px;
+
+}
+
+.export-body .form-group {
+
+    margin-bottom: 0;
+
+}
+
+.export-body label {
+
+    display: block;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    margin-bottom: 6px;
+
+    color: #555;
+
+}
+
+.export-body input,
+
+.export-body select,
+
+.export-body .react-datepicker-wrapper,
+
+.export-body .react-datepicker__input-container input {
+
+    width: 100%;
+
+}
+
+.export-footer {
+
+    display: flex;
+
+    justify-content: flex-end;
+
+    gap: 10px;
+
+    padding: 18px 24px;
+
+    border-top: 1px solid #ececec;
+
+    background: #fafafa;
+
+}
+
+.export-footer .btn {
+
+    min-width: 140px;
+
+}
+
+@media (max-width:768px) {
+
+    .export-modal {
+
+        width: 96%;
+
+    }
+
+    .export-body {
+
+        grid-template-columns: 1fr;
+
+    }
+
+}
+
+@keyframes fadeIn {
+
+    from {
+
+        opacity: 0;
+
+    }
+
+    to {
+
+        opacity: 1;
+
+    }
+
+}
+
+@keyframes slideUp {
+
+    from {
+
+        transform: translateY(30px);
+
+        opacity: 0;
+
+    }
+
+    to {
+
+        transform: translateY(0);
+
+        opacity: 1;
+
+    }
+
+}
